@@ -1,5 +1,6 @@
 """Tests for MassiveDataSource (mocked)."""
 
+import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -110,6 +111,68 @@ class TestMassiveDataSource:
 
         await source.add_ticker("AAPL")
         assert "AAPL" in source.get_tickers()
+
+    async def test_add_ticker_idempotent(self):
+        """Adding an already-tracked ticker is a no-op."""
+        cache = PriceCache()
+        source = MassiveDataSource(api_key="test-key", price_cache=cache)
+        source._tickers = ["AAPL"]
+
+        await source.add_ticker("AAPL")
+        assert source.get_tickers() == ["AAPL"]
+
+    async def test_add_ticker_triggers_immediate_poll(self):
+        """add_ticker should poll immediately so the new ticker has a price."""
+        cache = PriceCache()
+        source = MassiveDataSource(api_key="test-key", price_cache=cache)
+        source._client = MagicMock()  # bypass the _poll_once guard
+
+        snap = _make_snapshot("TSLA", 250.50, 1707580800000)
+        with patch.object(source, "_fetch_snapshots", return_value=[snap]):
+            await source.add_ticker("TSLA")
+
+        # Cache populated by the immediate poll, not waiting for the loop
+        assert cache.get_price("TSLA") == 250.50
+
+    async def test_remove_during_poll_is_filtered(self):
+        """Snapshots for tickers no longer watched must not re-enter the cache.
+
+        Race scenario: a ticker was removed from _tickers while
+        _fetch_snapshots was in flight. The returned snapshots may
+        include the removed ticker; we must skip those rows so the
+        cache stays clean.
+        """
+        cache = PriceCache()
+        source = MassiveDataSource(api_key="test-key", price_cache=cache)
+        source._tickers = ["AAPL"]  # REMOVED is intentionally absent
+        source._client = MagicMock()
+
+        snapshots = [
+            _make_snapshot("REMOVED", 100.00, 1707580800000),  # stale
+            _make_snapshot("AAPL", 190.50, 1707580800000),
+        ]
+        with patch.object(source, "_fetch_snapshots", return_value=snapshots):
+            await source._poll_once()
+
+        assert cache.get("REMOVED") is None
+        assert cache.get_price("AAPL") == 190.50
+
+    async def test_poll_loop_iterates(self):
+        """The background _poll_loop runs and re-polls after the interval."""
+        cache = PriceCache()
+        source = MassiveDataSource(
+            api_key="test-key", price_cache=cache, poll_interval=0.01
+        )
+        snap = _make_snapshot("AAPL", 190.00, 1707580800000)
+
+        with patch("app.market.massive_client.RESTClient"):
+            with patch.object(source, "_fetch_snapshots", return_value=[snap]):
+                await source.start(["AAPL"])
+                # Let the loop body run a couple of iterations
+                await asyncio.sleep(0.05)
+                await source.stop()
+
+        assert cache.get_price("AAPL") == 190.00
 
     async def test_add_ticker_uppercase_normalization(self):
         """Test that tickers are normalized to uppercase."""
