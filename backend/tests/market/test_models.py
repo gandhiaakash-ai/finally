@@ -1,5 +1,7 @@
 """Tests for PriceUpdate dataclass."""
 
+from dataclasses import FrozenInstanceError
+
 import pytest
 
 from app.market.models import PriceUpdate
@@ -73,5 +75,5 @@ class TestPriceUpdate:
         """Test that PriceUpdate is immutable."""
         update = PriceUpdate(ticker="AAPL", price=190.50, previous_price=190.00, timestamp=1234567890.0)
 
-        with pytest.raises(AttributeError):
+        with pytest.raises(FrozenInstanceError):
             update.price = 200.00  # Should raise error

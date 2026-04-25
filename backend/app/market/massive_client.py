@@ -6,7 +6,7 @@ import asyncio
 import logging
 
 from massive import RESTClient
-from massive.rest.models import SnapshotMarketType
+from massive.rest.models import SnapshotMarketType, TickerSnapshot
 
 from .cache import PriceCache
 from .interface import MarketDataSource
@@ -65,9 +65,14 @@ class MassiveDataSource(MarketDataSource):
 
     async def add_ticker(self, ticker: str) -> None:
         ticker = ticker.upper().strip()
-        if ticker not in self._tickers:
-            self._tickers.append(ticker)
-            logger.info("Massive: added ticker %s (will appear on next poll)", ticker)
+        if ticker in self._tickers:
+            return
+        self._tickers.append(ticker)
+        logger.info("Massive: added ticker %s", ticker)
+        # Trigger an immediate poll so the new ticker has a price right away
+        # rather than waiting up to poll_interval seconds. Costs one extra API
+        # call per add — acceptable since adds are user-driven and infrequent.
+        await self._poll_once()
 
     async def remove_ticker(self, ticker: str) -> None:
         ticker = ticker.upper().strip()
@@ -97,6 +102,10 @@ class MassiveDataSource(MarketDataSource):
             snapshots = await asyncio.to_thread(self._fetch_snapshots)
             processed = 0
             for snap in snapshots:
+                # Skip snapshots for tickers removed during the poll
+                # (the snapshot was requested before the user removed them).
+                if snap.ticker not in self._tickers:
+                    continue
                 try:
                     price = snap.last_trade.price
                     # Massive timestamps are Unix milliseconds → convert to seconds
@@ -120,9 +129,10 @@ class MassiveDataSource(MarketDataSource):
             # Don't re-raise — the loop will retry on the next interval.
             # Common failures: 401 (bad key), 429 (rate limit), network errors.
 
-    def _fetch_snapshots(self) -> list:
+    def _fetch_snapshots(self) -> list[TickerSnapshot]:
         """Synchronous call to the Massive REST API. Runs in a thread."""
         return self._client.get_snapshot_all(
             market_type=SnapshotMarketType.STOCKS,
             tickers=self._tickers,
+            include_otc=False,
         )
