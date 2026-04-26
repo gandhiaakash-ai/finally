@@ -27,26 +27,21 @@ export function useWatchlist() {
   const [error, setError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .getWatchlist()
-      .then((res) => {
-        if (cancelled) return;
-        setTickers(res.tickers.map((entry) => entry.ticker));
-        setError(null);
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : "Failed to load");
-      })
-      .finally(() => {
-        if (!cancelled) setLoaded(true);
-      });
-    return () => {
-      cancelled = true;
-    };
+  const refresh = useCallback(async () => {
+    try {
+      const res = await api.getWatchlist();
+      setTickers(res.tickers.map((entry) => entry.ticker));
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load");
+    } finally {
+      setLoaded(true);
+    }
   }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const add = useCallback(async (ticker: string) => {
     const res = await api.addWatchlist(ticker);
@@ -58,5 +53,5 @@ export function useWatchlist() {
     setTickers(res.tickers);
   }, []);
 
-  return { tickers, add, remove, error, loaded };
+  return { tickers, add, remove, refresh, error, loaded };
 }

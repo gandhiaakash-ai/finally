@@ -16,8 +16,8 @@ import { formatUsd } from "@/lib/format";
 
 export default function Home() {
   const { prices, history, status } = useLivePrices();
-  const { tickers, add, remove } = useWatchlist();
-  const { summary, refresh } = usePortfolio();
+  const { tickers, add, remove, refresh: refreshWatchlist } = useWatchlist();
+  const { summary, refresh: refreshPortfolio } = usePortfolio();
   const { snapshots } = usePortfolioHistory();
   const [selected, setSelected] = useState<string | null>("AAPL");
 
@@ -69,7 +69,7 @@ export default function Home() {
         </div>
       </header>
 
-      <TradeBar defaultTicker={activeTicker} onTraded={refresh} />
+      <TradeBar defaultTicker={activeTicker} onTraded={refreshPortfolio} />
 
       <section className="grid grid-cols-12 gap-4 flex-1 min-h-[420px]">
         <div className="col-span-3 min-h-[420px]">
@@ -91,7 +91,12 @@ export default function Home() {
           />
         </div>
         <div className="col-span-3 min-h-[420px]">
-          <ChatPanel onActions={refresh} />
+          <ChatPanel
+            onActions={() => {
+              refreshPortfolio();
+              refreshWatchlist();
+            }}
+          />
         </div>
       </section>
 
