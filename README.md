@@ -1,62 +1,54 @@
-# FinAlly — AI Trading Workstation
+# FinAlly
 
-A visually stunning AI-powered trading workstation that streams live market data, simulates portfolio trading, and integrates an LLM chat assistant that can analyze positions and execute trades via natural language.
+AI-powered trading workstation. Streams live market data, simulates a $10k portfolio, and embeds an LLM chat assistant that can analyse positions and execute trades.
 
-Built entirely by coding agents as a capstone project for an agentic AI coding course.
+Single Docker container, single port, SQLite for state. Bloomberg-style dark UI.
 
-## Features
+## Quick start
 
-- **Live price streaming** via SSE with green/red flash animations
-- **Simulated portfolio** — $10k virtual cash, market orders, instant fills
-- **Portfolio visualizations** — heatmap (treemap), P&L chart, positions table
-- **AI chat assistant** — analyzes holdings, suggests and auto-executes trades
-- **Watchlist management** — track tickers manually or via AI
-- **Dark terminal aesthetic** — Bloomberg-inspired, data-dense layout
+Set `OPENROUTER_API_KEY` in `.env` (copy from `.env.example`), then:
+
+```bash
+scripts/start_mac.sh        # macOS / Linux
+scripts/start_windows.ps1   # Windows PowerShell
+```
+
+App is available at <http://localhost:8000>.
+
+To stop:
+
+```bash
+scripts/stop_mac.sh         # macOS / Linux
+scripts/stop_windows.ps1    # Windows PowerShell
+```
+
+The SQLite database persists in the `finally-data` Docker volume across restarts.
+
+## Environment variables
+
+| Variable | Required | Default | Notes |
+|---|---|---|---|
+| `OPENROUTER_API_KEY` | yes | — | Powers the AI chat assistant |
+| `MASSIVE_API_KEY` | no | unset | If set, real Polygon-backed market data; otherwise built-in simulator |
+| `LLM_MOCK` | no | `false` | `true` returns deterministic LLM responses (used by E2E) |
 
 ## Architecture
 
-Single Docker container serving everything on port 8000:
+- `backend/` — FastAPI + uv. Owns market-data simulator, SSE streaming, REST API, LLM orchestration, SQLite.
+- `frontend/` — Next.js + TypeScript + Tailwind. Built as a static export and served by FastAPI from `/`.
+- `test/` — Playwright E2E suite + `docker-compose.test.yml`.
+- `scripts/` — Idempotent start/stop wrappers around `docker run`.
+- `planning/PLAN.md` — Full project specification.
 
-- **Frontend**: Next.js (static export) with TypeScript and Tailwind CSS
-- **Backend**: FastAPI (Python/uv) with SSE streaming
-- **Database**: SQLite with lazy initialization
-- **AI**: LiteLLM → OpenRouter (Cerebras inference) with structured outputs
-- **Market data**: Built-in GBM simulator (default) or Massive API (optional)
-
-## Quick Start
+## Running tests
 
 ```bash
-# Clone and configure
-cp .env.example .env
-# Add your OPENROUTER_API_KEY to .env
+# Backend unit/integration (300+ tests)
+cd backend && uv run --extra dev pytest
 
-# Run with Docker
-docker build -t finally .
-docker run -v finally-data:/app/db -p 8000:8000 --env-file .env finally
+# Frontend unit (Vitest)
+cd frontend && npm test
 
-# Open http://localhost:8000
+# Full E2E (builds image, runs Playwright in compose)
+docker compose -f test/docker-compose.test.yml up --abort-on-container-exit --exit-code-from runner --build
 ```
-
-## Environment Variables
-
-| Variable | Required | Description |
-|---|---|---|
-| `OPENROUTER_API_KEY` | Yes | OpenRouter API key for AI chat |
-| `MASSIVE_API_KEY` | No | Massive (Polygon.io) key for real market data; omit to use simulator |
-| `LLM_MOCK` | No | Set `true` for deterministic mock LLM responses (testing) |
-
-## Project Structure
-
-```
-finally/
-├── frontend/    # Next.js static export
-├── backend/     # FastAPI uv project
-├── planning/    # Project documentation and agent contracts
-├── test/        # Playwright E2E tests
-├── db/          # SQLite volume mount (runtime)
-└── scripts/     # Start/stop helpers
-```
-
-## License
-
-See [LICENSE](LICENSE).
