@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+@theme {
+  /* FinAlly trading terminal palette */
+  --color-bg-base: #0d1117;
+  --color-bg-panel: #131826;
+  --color-bg-panel-2: #1a1a2e;
+  --color-bg-elevated: #1f2336;
+  --color-border-subtle: #262b3d;
+  --color-border-strong: #353a55;
+
+  --color-text-primary: #e6edf3;
+  --color-text-secondary: #9aa3b8;
+  --color-text-muted: #6b7390;
+
+  --color-accent-yellow: #ecad0a;
+  --color-accent-blue: #209dd7;
+  --color-accent-purple: #753991;
+
+  --color-tick-up: #22c55e;
+  --color-tick-down: #ef4444;
+  --color-tick-flat: #6b7390;
+
+  --color-flash-up: rgba(34, 197, 94, 0.28);
+  --color-flash-down: rgba(239, 68, 68, 0.28);
+
+  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular,
+    Menlo, Monaco, Consolas, monospace;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  html,
+  body {
+    background-color: var(--color-bg-base);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01", "ss03";
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-yellow);
+    color: #000;
+  }
+
+  /* Subtle scrollbar matched to dark theme */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-muted);
+  }
+}
+
+@layer components {
+  .panel {
+    background-color: var(--color-bg-panel);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 6px;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--color-border-subtle);
+    text-transform: uppercase;
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    color: var(--color-text-secondary);
+  }
+
+  .mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Price flash: applied for ~500ms after a price change */
+  .flash-up {
+    animation: flash-up-anim 600ms ease-out;
+  }
+  .flash-down {
+    animation: flash-down-anim 600ms ease-out;
+  }
+
+  @keyframes flash-up-anim {
+    0% {
+      background-color: var(--color-flash-up);
+    }
+    100% {
+      background-color: transparent;
+    }
+  }
+  @keyframes flash-down-anim {
+    0% {
+      background-color: var(--color-flash-down);
+    }
+    100% {
+      background-color: transparent;
+    }
+  }
+}

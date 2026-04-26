@@ -205,3 +205,25 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Node / Next.js
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/tsconfig.tsbuildinfo
+
+# FastAPI-served static frontend bundle (built by Docker stage 1)
+backend/static/
+
+# SQLite runtime files (db/.gitkeep keeps the directory)
+db/*.db
+db/*.db-shm
+db/*.db-wal
+
+# Playwright outputs
+test/test-results/
+test/playwright-report/
+test/results/
+
+# Playwright MCP debug logs
+.playwright-mcp/

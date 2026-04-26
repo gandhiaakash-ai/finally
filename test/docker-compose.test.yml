@@ -1,0 +1,46 @@
+services:
+  finally-app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: finally:test
+    environment:
+      LLM_MOCK: "true"
+      OPENROUTER_API_KEY: "mock-key-not-used"
+      MASSIVE_API_KEY: ""
+    expose:
+      - "8000"
+    # tmpfs at /app/db so each test run starts from a fresh, auto-seeded DB
+    # without polluting the dev `finally-data` volume.
+    tmpfs:
+      - /app/db
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3).status==200 else 1)"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  runner:
+    image: mcr.microsoft.com/playwright:v1.59.1-jammy
+    depends_on:
+      finally-app:
+        condition: service_healthy
+    working_dir: /work
+    environment:
+      # NOTE: hostname must not be a single-label TLD on the Chromium HSTS
+      # preload list (e.g. "app"). `finally-app` avoids that.
+      BASE_URL: "http://finally-app:8000"
+      CI: "true"
+    volumes:
+      - ./:/work
+      - playwright-node-modules:/work/node_modules
+    command: >
+      bash -lc "
+        set -euo pipefail;
+        npm ci --no-audit --no-fund || npm install --no-audit --no-fund;
+        npx playwright test
+      "
+
+volumes:
+  playwright-node-modules:
